@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server'; import { z } from 'zod'; import { createRentalBooking } from '@/lib/booking'; import { getCurrentUser } from '@/lib/auth';
+const schema=z.object({rentalId:z.string().min(1),startAt:z.coerce.date(),endAt:z.coerce.date()});
+export async function POST(req:Request){try{const user=await getCurrentUser();if(!user)return NextResponse.json({error:'Login required'},{status:401});const input=schema.parse(await req.json());const booking=await createRentalBooking({...input,userId:user.id});return NextResponse.json({booking},{status:201});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid request'},{status:400});}}

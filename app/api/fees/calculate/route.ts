@@ -1,0 +1,2 @@
+import { NextResponse } from 'next/server'; import { z } from 'zod'; import { calculateFee } from '@/lib/fees';
+export async function POST(req:Request){try{const {service,amount}=z.object({service:z.string(),amount:z.number().nonnegative()}).parse(await req.json());return NextResponse.json({fee:await calculateFee(service,amount)});}catch{return NextResponse.json({error:'Invalid request'},{status:400});}}

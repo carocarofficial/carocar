@@ -1,0 +1,13 @@
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+type Car={id:string;brand:string;model:string;registrationYear:number;kmDriven:number;price:number;location:string;fuel:string;colour?:string;variant?:string;owners?:number;ownerListing?:any;dealerInventory?:any};
+
+export default function Compare(){
+  const [cars,setCars]=useState<Car[]>([]); const [loading,setLoading]=useState(true); const [msg,setMsg]=useState('');
+  async function load(){try{const r=await fetch('/api/comparisons');const d=await r.json();if(!r.ok){setMsg(d.error||'Please log in');return}setCars(d.cars||[])}catch{setMsg('Unable to load comparison')}finally{setLoading(false)}}
+  useEffect(()=>{load()},[]);
+  async function remove(id:string){const r=await fetch('/api/comparisons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vehicleId:id})});const d=await r.json();if(r.ok){setCars(x=>x.filter(c=>c.id!==id));setMsg('Removed from comparison')}else setMsg(d.error||'Please log in')}
+  return <main className="section"><div className="container"><div className="pageHead"><div><div className="eyebrow">COMPARE</div><h1>Compare Cars</h1><p className="muted">Your selected cars appear here side by side.</p></div><Link className="btn ghost" href="/buy">← Back to BUY</Link></div>{msg&&<div className="notice">{msg}</div>}{loading?<div className="panel">Loading comparison…</div>:cars.length===0?<div className="panel"><h2>No cars selected</h2><p className="muted">Go to BUY and press Compare on up to 4 cars.</p><Link className="btn primary" href="/buy">Browse cars</Link></div>:<div className="panel" style={{overflowX:'auto',marginTop:24}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:650}}><thead><tr><th style={{textAlign:'left',padding:14}}>Attribute</th>{cars.map(c=><th key={c.id} style={{textAlign:'left',padding:14}}>{c.brand} {c.model}<div><button className="btn ghost" onClick={()=>remove(c.id)}>Remove</button></div></th>)}</tr></thead><tbody>{[['Year',c=>c.registrationYear],['KM',c=>`${c.kmDriven.toLocaleString('en-IN')} km`],['Price',c=>`₹${(c.price/100000).toFixed(2)} Lakh`],['Location',c=>c.location],['Fuel',c=>c.fuel.replace('_',' + ')],['Variant',c=>c.variant||'—'],['Owners',c=>c.owners??'—'],['Type',c=>c.dealerInventory?'Dealer inventory':'Owner-listed']].map(([label,fn]:any)=><tr key={label as string}><td style={{padding:14,borderTop:'1px solid #e6ebf2',fontWeight:700}}>{label as string}</td>{cars.map(c=><td key={c.id} style={{padding:14,borderTop:'1px solid #e6ebf2'}}>{fn(c)}</td>)}</tr>)}</tbody></table></div>}</div></main>
+}

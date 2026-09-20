@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  DEALER
+  ADMIN
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  SOLD
+  RESERVED
+  REMOVED
+}
+
+enum Fuel {
+  PETROL
+  DIESEL
+  EV
+  CNG
+  PETROL_CNG
+}
+
+enum RentalMode {
+  SELF_DRIVE
+  WITH_DRIVER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  phone            String?          @unique
+  passwordHash     String?
+  role             Role             @default(USER)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  profile          UserProfile?
+  dealer           Dealer?
+  ownerListings    OwnerListing[]
+  favourites       Favourite[]
+  comparisons      Comparison[]
+  notifications    Notification[]
+  authoredReviews  Review[]          @relation("ReviewAuthor")
+  subjectReviews   Review[]          @relation("ReviewSubject")
+  saathiRides      SaathiRide[]
+  saathiRequests   SaathiRequest[]
+  saathiBookings   SaathiBooking[]
+  rentalBookings   RentalBooking[]
+  auditLogs        AuditLog[]
+}
+
+model UserProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  name       String
+  city       String?
+  avatarUrl  String?
+  bio        String?
+  verifiedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Vehicle {
+  id                 String            @id @default(cuid())
+  brand              String
+  model              String
+  variant            String?
+  registrationYear   Int
+  registrationNumber String?
+  owners             Int
+  fuel               Fuel
+  kmDriven           Int
+  colour             String?
+  location           String
+  price              Int
+  description        String?
+  condition          String?
+  accidentHistory    String?
+  serviceHistory     String?
+  insuranceInfo      String?
+  rcInfo             String?
+  features           Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  media              VehicleMedia[]
+  ownerListing       OwnerListing?
+  dealerInventory    DealerInventory?
+  rentalListings     RentalListing[]
+  favourites         Favourite[]
+  comparisons        Comparison[]
+}
+
+model VehicleMedia {
+  id         String  @id @default(cuid())
+  vehicleId  String
+  type       String
+  url        String
+  storageKey String?
+  sortOrder  Int     @default(0)
+  isPrimary  Boolean @default(false)
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model OwnerListing {
+  id         String        @id @default(cuid())
+  vehicleId  String        @unique
+  sellerId   String
+  status     ListingStatus @default(PENDING)
+  negotiable Boolean       @default(true)
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  seller     User          @relation(fields: [sellerId], references: [id])
+}
+
+model Dealer {
+  id          String             @id @default(cuid())
+  userId      String             @unique
+  storeName   String
+  slug        String             @unique
+  verification VerificationStatus @default(UNVERIFIED)
+  address     String?
+  contactPhone String?
+  description String?
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents   DealerDocument[]
+  inventory   DealerInventory[]
+}
+
+model DealerDocument {
+  id         String             @id @default(cuid())
+  dealerId   String
+  type       String
+  storageKey String
+  status     VerificationStatus @default(PENDING)
+  dealer     Dealer             @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+}
+
+model DealerInventory {
+  id         String        @id @default(cuid())
+  dealerId   String
+  vehicleId  String        @unique
+  status     ListingStatus @default(PENDING)
+  warranty   Json?
+  inspection Json?
+  financing  Json?
+  insurance  Json?
+  price      Int
+  dealer     Dealer        @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model RentalListing {
+  id             String            @id @default(cuid())
+  vehicleId      String
+  mode           RentalMode
+  hourlyRate     Int
+  dailyRate      Int
+  securityDeposit Int?
+  kmPolicy       String?
+  terms          String?
+  pickupDrop     String?
+  driverInfo     Json?
+  active         Boolean           @default(true)
+  vehicle        Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  bookings       RentalBooking[]
+  availability   RentalAvailability[]
+}
+
+model RentalAvailability {
+  id         String        @id @default(cuid())
+  rentalId   String
+  startAt    DateTime
+  endAt      DateTime
+  available  Boolean       @default(true)
+  rental     RentalListing @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  @@index([rentalId, startAt, endAt])
+}
+
+model RentalBooking {
+  id         String        @id @default(cuid())
+  rentalId   String
+  userId     String
+  startAt    DateTime
+  endAt      DateTime
+  totalPrice Int
+  status     BookingStatus @default(PENDING)
+  rental     RentalListing @relation(fields: [rentalId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
+  @@index([rentalId, startAt, endAt, status])
+}
+
+model SaathiRide {
+  id                   String          @id @default(cuid())
+  driverId             String
+  fromLocation         String
+  toLocation           String
+  date                 DateTime
+  departureAt          DateTime
+  pickupPoint          String?
+  dropPoint            String?
+  availableSeats       Int
+  contributionPerSeat  Int
+  notes                String?
+  driver               User            @relation(fields: [driverId], references: [id])
+  requests             SaathiRequest[]
+  bookings             SaathiBooking[]
+}
+
+model SaathiRequest {
+  id          String        @id @default(cuid())
+  rideId      String
+  passengerId String
+  seats       Int
+  status      RequestStatus @default(PENDING)
+  ride        SaathiRide    @relation(fields: [rideId], references: [id])
+  passenger   User          @relation(fields: [passengerId], references: [id])
+}
+
+model SaathiBooking {
+  id          String        @id @default(cuid())
+  rideId      String
+  passengerId String
+  seats       Int
+  status      BookingStatus @default(CONFIRMED)
+  ride        SaathiRide    @relation(fields: [rideId], references: [id])
+  passenger   User          @relation(fields: [passengerId], references: [id])
+}
+
+model Review {
+  id           String  @id @default(cuid())
+  authorId     String
+  subjectUserId String?
+  rating       Int
+  comment      String?
+  rideId       String?
+  author       User    @relation("ReviewAuthor", fields: [authorId], references: [id])
+  subjectUser  User?   @relation("ReviewSubject", fields: [subjectUserId], references: [id])
+}
+
+model Favourite {
+  id        String  @id @default(cuid())
+  userId    String
+  vehicleId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  @@unique([userId, vehicleId])
+}
+
+model Comparison {
+  id        String  @id @default(cuid())
+  userId    String
+  vehicleId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  @@unique([userId, vehicleId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlatformFee {
+  id         String   @id @default(cuid())
+  service    String   @unique
+  enabled    Boolean  @default(false)
+  percentage Decimal  @default(0)
+  fixedFee   Int      @default(0)
+  minimumFee Int?
+  maximumFee Int?
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  userId    String?
+  service   String
+  amount    Int
+  fee       Int
+  currency  String   @default("INR")
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String
+  details    String?
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [adminId], references: [id])
+}
