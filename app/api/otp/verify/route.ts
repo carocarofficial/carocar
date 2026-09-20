@@ -11,7 +11,7 @@ export async function POST(req:Request){
   const hash=createHash('sha256').update(String(code)).digest('hex');
   if(hash!==otp.codeHash){await db.otpCode.update({where:{id:otp.id},data:{attempts:{increment:1}}});return NextResponse.json({error:'Invalid OTP'},{status:400});}
   let user=otp.userId?await db.user.findUnique({where:{id:otp.userId}}):await db.user.findUnique({where:{phone:String(phone)}});
-  if(!user) user=await db.user.create({data:{phone:String(phone)}});
+  if(!user) user=await db.user.create({data:{phone:String(phone),email:"phone-"+createHash("sha256").update(String(phone)).digest("hex").slice(0,24)+"@carocar.local"}});
   await db.otpCode.update({where:{id:otp.id},data:{verifiedAt:new Date(),userId:user.id}});
   const res=NextResponse.json({ok:true,user:{id:user.id,phone:user.phone}}); res.cookies.set(COOKIE,makeSession(user.id),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:60*60*24*30}); return res;
 }
