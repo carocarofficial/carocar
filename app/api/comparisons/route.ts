@@ -9,7 +9,7 @@ export async function GET() {
   const rows = await db.comparison.findMany({
     where: { userId: user.id },
     include: { vehicle: { include: { media: { where: { isPrimary: true }, take: 1 }, ownerListing: true, dealerInventory: { include: { dealer: true } } } } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { id: 'asc' },
   });
   return NextResponse.json({ ids: rows.map(r => r.vehicleId), cars: rows.map(r => r.vehicle) });
 }
