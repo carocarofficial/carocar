@@ -11,7 +11,7 @@ export default function OwnerSell() {
     setMessage('');
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
+    const formElement = e.currentTarget; const form = new FormData(formElement);
 
     const data = {
       brand: String(form.get('brand') || ''),
@@ -49,7 +49,7 @@ export default function OwnerSell() {
       }
 
       setMessage('Your car has been submitted for review.');
-      e.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Something went wrong');
     } finally {
